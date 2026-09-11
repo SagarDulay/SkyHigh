@@ -6,12 +6,13 @@ public class MovingPlatform : MonoBehaviour, IButtonReaction, IResettable
     [SerializeField] private Transform targetPoint;
     [SerializeField] private float moveSpeed = 2f;
     [SerializeField] private bool returnAfterReaching = false;
+    [SerializeField] private float pauseAtDestination = 0.15f;
 
     private Vector3 _startPosition;
     private bool _isMoving = false;
     private bool _returning = false;
-    private MovingPlatform _currentPlatform;
-    private Vector3 _lastPlatformPosition;
+    private bool _waiting = false;
+    private float _waitTimer = 0f;
 
     private void Awake()
     {
@@ -22,28 +23,51 @@ public class MovingPlatform : MonoBehaviour, IButtonReaction, IResettable
     {
         _isMoving = true;
         _returning = false;
+        _waiting = false;
     }
 
     private void Update()
     {
         if (!_isMoving) return;
 
+        
+        if (_waiting)
+        {
+            _waitTimer -= Time.deltaTime;
+            if (_waitTimer <= 0f)
+            {
+                _waiting = false;
+                _returning = true;
+            }
+            return;
+        }
+
         Vector3 destination = _returning ? _startPosition : targetPoint.position;
 
-        Vector3 newPosition = Vector3.MoveTowards(
+        
+        float distance = Vector3.Distance(transform.position, destination);
+        float speed = Mathf.Clamp(distance * 2f, 0.5f, moveSpeed);
+
+        transform.position = Vector3.MoveTowards(
             transform.position,
             destination,
-            moveSpeed * Time.deltaTime
+            speed * Time.deltaTime
         );
 
-        transform.position = newPosition;
-
-        if (transform.position == destination)
+        if (Vector3.Distance(transform.position, destination) < 0.01f)
         {
+            transform.position = destination;
+
             if (returnAfterReaching && !_returning)
-                _returning = true;
+            {
+                
+                _waiting = true;
+                _waitTimer = pauseAtDestination;
+            }
             else
+            {
                 _isMoving = false;
+            }
         }
     }
 
@@ -51,6 +75,8 @@ public class MovingPlatform : MonoBehaviour, IButtonReaction, IResettable
     {
         _isMoving = false;
         _returning = false;
+        _waiting = false;
+        _waitTimer = 0f;
         transform.position = _startPosition;
     }
 }
