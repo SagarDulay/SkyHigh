@@ -1,3 +1,10 @@
+// DESIGN PATTERN: Strategy (IButtonReaction)
+// Door defines its own reaction to a button press independently.
+// PuzzleButton never knows Door exists — it just fires its UnityEvent.
+//
+// SOLID — Single Responsibility:
+// Door only handles sliding open and resetting. Nothing else.
+
 using UnityEngine;
 
 public class Door : MonoBehaviour, IButtonReaction, IResettable
@@ -16,10 +23,10 @@ public class Door : MonoBehaviour, IButtonReaction, IResettable
         _openPosition = transform.position + openOffset;
     }
 
+    // IButtonReaction — called by PuzzleButton's UnityEvent
     public void OnButtonActivated()
     {
         _isOpening = true;
-
         AudioManager.Instance.PlayDoorOpen();
     }
 
@@ -27,12 +34,17 @@ public class Door : MonoBehaviour, IButtonReaction, IResettable
     {
         if (!_isOpening) return;
 
-        transform.position = Vector3.MoveTowards(transform.position, _openPosition, slideSpeed * Time.deltaTime);
+        transform.position = Vector3.MoveTowards(
+            transform.position,
+            _openPosition,
+            slideSpeed * Time.deltaTime
+        );
 
         if (transform.position == _openPosition)
             _isOpening = false;
     }
 
+    // IResettable — called by CheckpointManager on player death
     public void ResetState()
     {
         _isOpening = false;

@@ -1,3 +1,10 @@
+// SOLID — Single Responsibility:
+// EnemyPatrol only handles patrol movement and player death on contact.
+//
+// SOLID — Open/Closed:
+// Implements IResettable so CheckpointManager resets it automatically on death.
+// No changes to CheckpointManager needed when new enemy types are added.
+
 using UnityEngine;
 
 public class EnemyPatrol : MonoBehaviour, IResettable
@@ -29,19 +36,19 @@ public class EnemyPatrol : MonoBehaviour, IResettable
             return;
         }
 
-        
+        // Move toward current target
         transform.position = Vector3.MoveTowards(
             transform.position,
             _target,
             moveSpeed * Time.deltaTime
         );
 
-        
+        // Face direction of movement
         Vector3 direction = (_target - transform.position).normalized;
         if (direction != Vector3.zero)
             transform.rotation = Quaternion.LookRotation(direction);
 
-        
+        // Reached target — switch direction and wait
         if (Vector3.Distance(transform.position, _target) < 0.05f)
         {
             _target = _target == pointB.position ? pointA.position : pointB.position;
@@ -50,16 +57,19 @@ public class EnemyPatrol : MonoBehaviour, IResettable
         }
     }
 
-    
+    // Kill player on contact
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
         {
+            if (AudioManager.Instance != null)
+                AudioManager.Instance.PlayEnemyDeath();
+
             CheckpointManager.Instance.RespawnPlayer(other.transform);
         }
     }
 
-    
+    // IResettable — called by CheckpointManager on player death
     public void ResetState()
     {
         transform.position = _startPosition;

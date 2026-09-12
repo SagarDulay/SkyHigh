@@ -1,3 +1,13 @@
+// DESIGN PATTERN: Strategy (IButtonReaction)
+// MovingPlatform defines its own reaction to a button press independently.
+// PuzzleButton fires its UnityEvent — MovingPlatform decides what that means.
+//
+// SOLID — Single Responsibility:
+// MovingPlatform only handles movement, waiting, and resetting. Nothing else.
+//
+// SOLID — Open/Closed:
+// New platform behaviors can be added without modifying PuzzleButton.
+
 using UnityEngine;
 
 public class MovingPlatform : MonoBehaviour, IButtonReaction, IResettable
@@ -19,6 +29,7 @@ public class MovingPlatform : MonoBehaviour, IButtonReaction, IResettable
         _startPosition = transform.position;
     }
 
+    // IButtonReaction — called by PuzzleButton's UnityEvent
     public void OnButtonActivated()
     {
         _isMoving = true;
@@ -30,7 +41,7 @@ public class MovingPlatform : MonoBehaviour, IButtonReaction, IResettable
     {
         if (!_isMoving) return;
 
-        
+        // Wait at destination before returning
         if (_waiting)
         {
             _waitTimer -= Time.deltaTime;
@@ -44,7 +55,7 @@ public class MovingPlatform : MonoBehaviour, IButtonReaction, IResettable
 
         Vector3 destination = _returning ? _startPosition : targetPoint.position;
 
-        
+        // Ease into destination — slows down as it approaches
         float distance = Vector3.Distance(transform.position, destination);
         float speed = Mathf.Clamp(distance * 2f, 0.5f, moveSpeed);
 
@@ -60,7 +71,7 @@ public class MovingPlatform : MonoBehaviour, IButtonReaction, IResettable
 
             if (returnAfterReaching && !_returning)
             {
-                
+                // Brief pause before retracting
                 _waiting = true;
                 _waitTimer = pauseAtDestination;
             }
@@ -71,6 +82,7 @@ public class MovingPlatform : MonoBehaviour, IButtonReaction, IResettable
         }
     }
 
+    // IResettable — called by CheckpointManager on player death
     public void ResetState()
     {
         _isMoving = false;

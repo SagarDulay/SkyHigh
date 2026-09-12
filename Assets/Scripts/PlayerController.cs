@@ -1,6 +1,24 @@
+// SOLID — Single Responsibility:
+// PlayerController only handles player movement, camera look, jumping,
+// gravity, platform sticking, and death detection. Nothing else.
+//
+// SOLID — Open/Closed:
+// Death detection uses LavaDeath as a marker component — new death surfaces
+// can be added without modifying this script.
+//
+// Platform sticking uses a raycast delta approach — the CharacterController
+// is moved by the exact delta the platform moved each frame, avoiding the
+// parent/unparent conflicts that CharacterController causes.
+//
+// Asymmetric gravity (lower on rise, higher on fall) creates the
+// Mario-style jump feel — floaty apex, snappy fall.
+//
+// Coyote time gives the player a brief grace period after leaving a
+// platform edge before the jump input is rejected.
+
 using UnityEngine;
 
-
+[RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
     [Header("Movement")]
@@ -18,14 +36,18 @@ public class PlayerController : MonoBehaviour
     [Header("References")]
     [SerializeField] private Transform cameraTransform;
 
-    
+    // Core movement state
     private CharacterController _cc;
     private float _verticalVelocity;
     private float _cameraPitch;
     private bool _isGrounded;
     private float _coyoteTimer;
 
-    
+    // Jump sound delay — prevents sound firing on scene start
+    private float _jumpSoundDelay = 0.01f;
+    private float _jumpSoundTimer = 0f;
+
+    // Platform sticking state
     private MovingPlatform _currentPlatform;
     private Vector3 _lastPlatformPosition;
 
@@ -47,7 +69,7 @@ public class PlayerController : MonoBehaviour
         StickToPlatform();
     }
 
-    
+    // 1. Mouse look — rotates player (Y axis) and camera (X axis)
     private void HandleMouseLook()
     {
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
@@ -60,7 +82,7 @@ public class PlayerController : MonoBehaviour
         cameraTransform.localRotation = Quaternion.Euler(_cameraPitch, 0f, 0f);
     }
 
-   
+    // 2. Grounded check — short raycast straight down from player's feet
     private void CheckGrounded()
     {
         float rayLength = 0.15f;
@@ -71,7 +93,7 @@ public class PlayerController : MonoBehaviour
         );
     }
 
-    
+    // 3. Coyote time — grace period after leaving a platform edge
     private void HandleCoyoteTime()
     {
         if (_isGrounded)
@@ -80,17 +102,11 @@ public class PlayerController : MonoBehaviour
             _coyoteTimer -= Time.deltaTime;
     }
 
-    
-    private float _jumpSoundDelay = 0.01f;  
-    private float _jumpSoundTimer = 0f;    
-
+    // 4. Jump — fires within coyote time window, plays sound after startup delay
     private void HandleJump()
     {
-        
         if (_jumpSoundTimer < _jumpSoundDelay)
-        {
             _jumpSoundTimer += Time.deltaTime;
-        }
 
         bool canJump = _coyoteTimer > 0f;
 
@@ -99,15 +115,12 @@ public class PlayerController : MonoBehaviour
             _verticalVelocity = jumpForce;
             _coyoteTimer = 0f;
 
-            
             if (_jumpSoundTimer >= _jumpSoundDelay)
-            {
                 AudioManager.Instance.PlayJump();
-            }
         }
     }
 
-    
+    // 5. Asymmetric gravity — lighter on rise, heavier on fall (Mario feel)
     private void ApplyGravity()
     {
         if (_isGrounded && _verticalVelocity < 0f)
@@ -120,7 +133,7 @@ public class PlayerController : MonoBehaviour
         _verticalVelocity += gravity * Time.deltaTime;
     }
 
-    
+    // 6. Horizontal movement — WASD relative to camera facing direction
     private void HandleMove()
     {
         float h = Input.GetAxis("Horizontal");
@@ -137,7 +150,8 @@ public class PlayerController : MonoBehaviour
         _cc.Move(velocity * Time.deltaTime);
     }
 
-    
+    // 7. Platform sticking — moves player by the exact delta the platform moved
+    // Avoids CharacterController parent/unparent conflicts
     private void StickToPlatform()
     {
         RaycastHit hit;
@@ -156,13 +170,13 @@ public class PlayerController : MonoBehaviour
             {
                 if (_currentPlatform != platform)
                 {
-                    
+                    // Just landed — record platform position
                     _currentPlatform = platform;
                     _lastPlatformPosition = platform.transform.position;
                 }
                 else
                 {
-                    
+                    // Already on it — move with it
                     Vector3 delta = platform.transform.position - _lastPlatformPosition;
                     _cc.Move(delta);
                     _lastPlatformPosition = platform.transform.position;
@@ -179,6 +193,8 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    // 8. Death detection — LavaDeath is a marker component on death surfaces
+    // CharacterController uses OnControllerColliderHit instead of OnCollisionEnter
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
         if (hit.gameObject.GetComponent<LavaDeath>() != null)

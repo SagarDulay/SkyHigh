@@ -1,3 +1,10 @@
+// SOLID — Single Responsibility:
+// PauseManager only handles pause state, timescale, cursor,
+// and scene loading to the main menu. Nothing else.
+//
+// Pause freezes Time.timeScale to 0 — all physics and animations
+// stop automatically. Resume restores it to 1 and re-locks the cursor.
+
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -25,6 +32,9 @@ public class PauseManager : MonoBehaviour
         Time.timeScale = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayPause();
     }
 
     public void Resume()
